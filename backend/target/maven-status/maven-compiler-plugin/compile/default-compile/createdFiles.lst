@@ -1,0 +1,13 @@
+com\edutrack\repository\MarkRecordRepository.class
+com\edutrack\StudentScoreApplication.class
+com\edutrack\model\MarkRecord.class
+com\edutrack\repository\UserRepository.class
+com\edutrack\controller\UniversityController.class
+com\edutrack\controller\MarkController.class
+com\edutrack\controller\MessageController.class
+com\edutrack\model\User.class
+com\edutrack\repository\MessageRepository.class
+com\edutrack\controller\UserController.class
+com\edutrack\model\Message.class
+com\edutrack\controller\EmailController.class
+com\edutrack\service\EmailService.class

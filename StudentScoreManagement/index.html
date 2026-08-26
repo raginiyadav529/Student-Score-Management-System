@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EduTrack — Login & Verification</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #f0c040;
+      --gold-light: #fde888;
+      --navy: #0a1628;
+      --navy-mid: #112240;
+      --accent: #64ffda;
+      --text-muted: #8892b0;
+      --danger: #ff6b6b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: var(--navy);
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 40px 0;
+      position: relative;
+      color: #fff;
+    }
+
+    /* Splash Screen */
+    #splash {
+      position: fixed; inset: 0;
+      background: var(--navy);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.8s ease, visibility 0.8s;
+    }
+    .splash-logo {
+      width: 100px; height: 100px;
+      background: linear-gradient(135deg, var(--gold), #e8a020);
+      border-radius: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      animation: pulse 2s infinite;
+      box-shadow: 0 12px 40px rgba(240,192,64,0.4);
+    }
+    #splash h1 { font-family: 'Playfair Display', serif; font-size: 3.5rem; margin-top: 20px; }
+    #splash h1 span { color: var(--gold); }
+    @keyframes pulse { 0%, 100% { transform: scale(0.95); } 50% { transform: scale(1.05); } }
+
+    /* Login UI */
+    .login-container {
+      width: 100%; max-width: 440px;
+      padding: 20px;
+      display: none; /* Shown after splash */
+      animation: fadeUp 0.8s ease;
+    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+    .brand-header { text-align: center; margin-bottom: 24px; }
+    .brand-header h1 { font-family: 'Playfair Display', serif; font-size: 2.2rem; }
+    .brand-header h1 span { color: var(--gold); }
+
+    .card {
+      background: rgba(17,34,64,0.85);
+      border: 1px solid rgba(100,255,218,0.1);
+      border-radius: 24px;
+      padding: 36px 32px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+    .card h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; margin-bottom: 6px; }
+    .card p.sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+
+    .input-group { margin-bottom: 20px; position: relative; }
+    .input-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; }
+    .input-group input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1.5px solid rgba(100,255,218,0.15);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      outline: none; transition: 0.3s;
+    }
+    .input-group input:focus { border-color: var(--accent); background: rgba(100,255,218,0.05); }
+
+    /* Captcha */
+    .captcha-box {
+      background: rgba(240,192,64,0.06);
+      border: 1.5px dashed rgba(240,192,64,0.3);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .captcha-display { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .captcha-text {
+      background: rgba(10,22,40,0.8);
+      border: 1px solid rgba(240,192,64,0.3);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: monospace; font-size: 1.4rem; font-weight: bold; letter-spacing: 6px;
+      color: var(--gold); text-align: center; flex: 1;
+      position: relative;
+    }
+    .captcha-text::after {
+      content: ''; position: absolute; top: 50%; left: 10px; right: 10px; height: 2px; background: rgba(240,192,64,0.4); transform: rotate(-3deg);
+    }
+    .btn-refresh { background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.25); color: var(--gold); padding: 10px; border-radius: 10px; cursor: pointer; }
+    
+    .btn-submit {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg, var(--gold), #e8a020);
+      border: none; border-radius: 12px;
+      color: var(--navy); font-size: 1rem; font-weight: bold;
+      cursor: pointer; transition: 0.3s;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(240,192,64,0.4); }
+
+    .error-msg { margin-top: 14px; background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.3); padding: 12px; border-radius: 10px; color: var(--danger); font-size: 0.85rem; display: none; text-align:center;}
+    .error-msg.show { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- Splash Screen -->
+  <div id="splash">
+    <div class="splash-logo">🎓</div>
+    <h1>Edu<span>Track</span></h1>
+    <p style="color: #8892b0; margin-top:10px; letter-spacing: 2px;">INITIALIZING SECURE PORTAL...</p>
+  </div>
+
+  <!-- Auth Container -->
+  <div class="login-container" id="loginForm">
+    <div class="brand-header">
+      <div style="font-size: 40px; margin-bottom: 10px;">🎓</div>
+      <h1>Edu<span>Track</span></h1>
+    </div>
+
+    <div class="card">
+      <h2 id="authTitle">Secure Login</h2>
+      <p class="sub" id="authSubtitle">Login to access the EduTrack dashboard</p>
+
+      <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="e.g. Rahul123" />
+      </div>
+
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter password" />
+      </div>
+
+      <div class="captcha-box">
+        <label style="font-size:0.8rem; color:var(--gold); display:block; margin-bottom:8px; text-transform:uppercase;">Security Captcha</label>
+        <div class="captcha-display">
+          <div class="captcha-text" id="captchaText">----</div>
+          <button class="btn-refresh" onclick="generateCaptcha()">↻</button>
+        </div>
+        <div class="input-group" style="margin-bottom:0;">
+          <input type="text" id="captchaInput" placeholder="Enter Captcha Code" style="text-transform:uppercase;" maxlength="6"/>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="authBtn" onclick="handleAuth()">✅ Secure Login →</button>
+      
+      <p style="text-align:center; margin-top:20px; color:var(--text-muted); font-size:0.9rem;">
+        <span id="toggleText">Don't have an account?</span> 
+        <span style="color:var(--accent); cursor:pointer; font-weight:bold; text-decoration:underline;" onclick="toggleAuthMode()" id="toggleBtn">Register Here</span>
+      </p>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+  </div>
+
+  <script>
+    // Splash screen logic
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      splash.style.opacity = '0';
+      setTimeout(() => {
+        splash.style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+      }, 800);
+    }, 2500);
+
+    // Captcha Logic
+    let generatedCaptcha = '';
+    function generateCaptcha() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      generatedCaptcha = '';
+      for (let i = 0; i < 5; i++) generatedCaptcha += chars.charAt(Math.floor(Math.random() * chars.length));
+      document.getElementById('captchaText').textContent = generatedCaptcha;
+      document.getElementById('captchaInput').value = '';
+    }
+    generateCaptcha();
+
+    // Auth Mode Toggle
+    let isRegisterMode = false;
+    function toggleAuthMode() {
+      isRegisterMode = !isRegisterMode;
+      const err = document.getElementById('errorMsg');
+      err.classList.remove('show');
+
+      if(isRegisterMode) {
+        document.getElementById('authTitle').innerText = 'Create Account';
+        document.getElementById('authSubtitle').innerText = 'Register for a new EduTrack account';
+        document.getElementById('authBtn').innerText = '✅ Register Account →';
+        document.getElementById('toggleText').innerText = 'Already have an account?';
+        document.getElementById('toggleBtn').innerText = 'Login Here';
+      } else {
+        document.getElementById('authTitle').innerText = 'Secure Login';
+        document.getElementById('authSubtitle').innerText = 'Login to access the EduTrack dashboard';
+        document.getElementById('authBtn').innerText = '✅ Secure Login →';
+        document.getElementById('toggleText').innerText = 'Don\'t have an account?';
+        document.getElementById('toggleBtn').innerText = 'Register Here';
+      }
+    }
+
+    // Auth Logic
+    async function handleAuth() {
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value.trim();
+      const captcha = document.getElementById('captchaInput').value.trim().toUpperCase();
+      const err = document.getElementById('errorMsg');
+      
+      if(u.length < 3 || p.length < 3) {
+        err.textContent = "Username & Password must be at least 3 characters.";
+        err.classList.add('show');
+        return;
+      }
+
+      if(captcha !== generatedCaptcha) {
+        err.textContent = 'Invalid Captcha! Try again.';
+        err.classList.add('show');
+        generateCaptcha();
+        return;
+      }
+      
+      err.classList.remove('show');
+      
+      const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+      const payload = isRegisterMode ? { username: u, password: p, role: 'TEACHER' } : { username: u, password: p };
+
+      try {
+        const res = await fetch('http://localhost:8080' + endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if(res.ok) {
+          const data = await res.json();
+          sessionStorage.setItem('studentName', data.username || u);
+          window.location.href = 'dashboard.html';
+        } else {
+          const errorData = await res.json();
+          err.textContent = errorData.error || "Authentication failed.";
+          err.classList.add('show');
+          generateCaptcha();
+        }
+      } catch (e) {
+        err.textContent = "Failed to connect to backend. Please ensure the Java server is running.";
+        err.classList.add('show');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EduTrack — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- For PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- For Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --gold: #f0c040;
+      --navy: #0a1628;
+      --navy-light: #1e3a5f;
+      --accent: #64ffda;
+      --text-muted: #8892b0;
+      --danger: #ff6b6b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--navy);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 250px;
+      background: rgba(10,22,40,0.9);
+      border-right: 1px solid rgba(100,255,218,0.1);
+      display: flex; flex-direction: column;
+    }
+    .brand {
+      padding: 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .brand h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; }
+    .brand h2 span { color: var(--gold); }
+    
+    .nav-links { flex: 1; padding: 20px 0; }
+    .nav-link {
+      padding: 16px 24px; color: var(--text-muted); cursor: pointer;
+      border-left: 3px solid transparent; transition: 0.3s;
+      display: flex; align-items: center; gap: 10px; font-weight: 500;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.02); color: #fff; }
+    .nav-link.active {
+      color: var(--accent); background: rgba(100,255,218,0.05); border-left-color: var(--accent);
+    }
+    .logout-btn {
+      padding: 20px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05);
+      color: var(--danger); cursor: pointer; font-weight: bold;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .tab-content { display: none; animation: fadeIn 0.4s; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+    /* Forms & Inputs */
+    .card {
+      background: rgba(17,34,64,0.85);
+      border: 1px solid rgba(100,255,218,0.1);
+      border-radius: 20px; padding: 30px;
+      margin-bottom: 24px;
+    }
+    .card h3 { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 20px; color: var(--gold); }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    
+    .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+    .input-group input, .input-group select {
+      width: 100%; padding: 12px; border-radius: 10px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(100,255,218,0.2);
+      color: #fff; font-family: 'DM Sans', sans-serif;
+    }
+    .input-group input:focus, .input-group select:focus { outline: none; border-color: var(--accent); }
+
+    .btn-calc {
+      width: 100%; padding: 16px; background: linear-gradient(135deg, var(--gold), #e8a020);
+      border: none; border-radius: 12px; color: var(--navy); font-weight: bold; font-size: 1.1rem;
+      cursor: pointer; transition: 0.3s;
+    }
+    .btn-calc:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(240,192,64,0.3); }
+
+    /* Result Box */
+    .result-box {
+      margin-top: 24px; padding: 24px; border-radius: 16px;
+      background: rgba(100,255,218,0.05); border: 1px solid var(--accent);
+      display: none;
+    }
+    .result-box.show { display: block; }
+    .result-box h4 { font-size: 1.2rem; color: var(--accent); margin-bottom: 10px; }
+    .pdf-btn {
+      background: #e74c3c; color: #fff; border: none; padding: 8px 16px; border-radius: 8px;
+      cursor: pointer; font-weight: bold; margin-top: 14px;
+    }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    th { background: rgba(10,22,40,0.8); color: var(--accent); font-size: 0.8rem; text-transform: uppercase; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .btn-edit { background: rgba(240,192,64,0.1); color: var(--gold); border: 1px solid var(--gold); padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+
+    /* WhatsApp Clone Chat */
+    .chat-container { display: flex; height: 75vh; border: 1px solid rgba(100,255,218,0.1); border-radius: 16px; overflow: hidden; }
+    .chat-sidebar { width: 250px; background: rgba(10,22,40,0.9); border-right: 1px solid rgba(255,255,255,0.05); }
+    .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--navy); }
+    .chat-header { padding: 16px; background: rgba(10,22,40,0.9); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 10px; font-weight: bold; }
+    .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    
+    .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 14px; position: relative; }
+    .msg-bubble .sender { font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; }
+    .msg-bubble .time { font-size: 0.65rem; opacity: 0.6; text-align: right; margin-top: 4px; }
+    
+    .msg-received { background: rgba(255,255,255,0.1); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg-received .sender { color: var(--accent); }
+    
+    .msg-sent { background: #056162; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg-sent .sender { color: var(--gold); }
+
+    .chat-input-area { padding: 16px; background: rgba(10,22,40,0.9); display: flex; gap: 10px; }
+    .chat-input-area input { flex: 1; padding: 12px 16px; border-radius: 20px; border: none; background: rgba(255,255,255,0.1); color: #fff; outline: none; }
+    .chat-input-area button { background: var(--accent); border: none; width: 44px; height: 44px; border-radius: 50%; color: var(--navy); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+    .contact { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
+    .contact:hover, .contact.active { background: rgba(255,255,255,0.05); }
+    .contact-avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #128C7E, #25D366); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+    /* Live Preview Bar */
+    .live-bar { background: rgba(255,255,255,0.03); border: 1px solid rgba(100,255,218,0.12); border-radius: 14px; padding: 16px 20px; margin-bottom: 24px; margin-top: 10px; }
+    .live-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .live-bar-title { color: var(--text-muted); font-size: 0.82rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+    .live-total { color: #fff; font-size: 1rem; font-weight: 700; }
+    .live-total span { color: var(--gold); }
+    .progress-track { background: rgba(255,255,255,0.07); border-radius: 99px; height: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease, background 0.4s ease; background: linear-gradient(90deg, var(--accent), var(--gold)); }
+
+    /* Hero Cards for Result */
+    .hero-card { background: linear-gradient(135deg, rgba(240,192,64,0.12), rgba(100,255,218,0.06)); border: 1px solid rgba(240,192,64,0.2); border-radius: 20px; padding: 20px 24px; display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+    .hero-avatar { width: 56px; height: 56px; background: linear-gradient(135deg, var(--gold), #e8a020); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; color: var(--navy); }
+    .hero-info h3 { color: #fff; font-size: 1.4rem; font-family: 'Playfair Display', serif; }
+    .hero-info p { color: var(--text-muted); font-size: 0.85rem; margin-top: 3px; }
+    .status-badge { padding: 10px 20px; border-radius: 99px; font-weight: 700; margin-left: auto; font-size: 1.1rem; }
+    .status-badge.pass { background: rgba(0,230,118,0.15); border: 1px solid rgba(0,230,118,0.3); color: #00e676; }
+    .status-badge.fail { background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.3); color: var(--danger); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(100,255,218,0.1); border-radius: 18px; padding: 20px; text-align: center; }
+    .stat-label { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 10px; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="brand">
+      <h2>Edu<span>Track</span></h2>
+      <p style="color:var(--text-muted); font-size:0.8rem; margin-top:5px;" id="loggedUser">Student</p>
+    </div>
+    <div class="nav-links">
+      <div class="nav-link active" onclick="switchTab('calc')">📝 Calculation</div>
+      <div class="nav-link" onclick="switchTab('storage')">📊 Calculated Records</div>
+      <div class="nav-link" onclick="switchTab('check-result')">🔍 Check Result</div>
+    </div>
+    <div class="logout-btn" onclick="logout()">Logout</div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    
+    <!-- TAB 1: Calculation -->
+    <div id="tab-calc" class="tab-content active">
+      <div class="card" id="pdf-content">
+        <h3>College Academic Details</h3>
+        <div class="grid-2">
+          <div class="input-group"><label>Student Name</label><input type="text" id="cName" placeholder="e.g. Aryan"/></div>
+          <div class="input-group"><label>Student Email (For Result)</label><input type="email" id="cEmail" placeholder="e.g. student@gmail.com"/></div>
+          <div class="input-group"><label>Roll Number</label><input type="text" id="cRoll" placeholder="e.g. 101"/></div>
+          <div class="input-group">
+            <label>University / College</label>
+            <input type="text" id="cCourse" list="universityList" placeholder="Search and select university..." onkeyup="searchUniversities(this.value)"/>
+            <datalist id="universityList"></datalist>
+            <div style="font-size:0.75rem; color:var(--accent); margin-top:4px;">Fetches live data from Hipolabs API</div>
+          </div>
+          <div class="input-group"><label>Semester</label><input type="text" id="cSem" placeholder="e.g. 2nd Semester"/></div>
+        </div>
+        <div class="grid-2">
+          <div class="input-group"><label>Department</label><input type="text" id="cDept" placeholder="e.g. Engineering" /></div>
+        </div>
+
+        <h3 style="margin-top:30px;">Subject Marks (Out of 100)</h3>
+        <div class="grid-3">
+          <div class="input-group"><label>Mathematics</label><input type="number" id="mMath" value="0" min="0" max="100" oninput="updatePreview()"/></div>
+          <div class="input-group"><label>Science</label><input type="number" id="mSci" value="0" min="0" max="100" oninput="updatePreview()"/></div>
+          <div class="input-group"><label>English</label><input type="number" id="mEng" value="0" min="0" max="100" oninput="updatePreview()"/></div>
+          <div class="input-group"><label>Social Science</label><input type="number" id="mSoc" value="0" min="0" max="100" oninput="updatePreview()"/></div>
+          <div class="input-group"><label>Computer Science</label><input type="number" id="mComp" value="0" min="0" max="100" oninput="updatePreview()"/></div>
+          <div class="input-group"><label>Hindi</label><input type="number" id="mHin" value="0" min="0" max="100" oninput="updatePreview()"/></div>
+        </div>
+
+        <!-- Live Preview -->
+        <div class="live-bar">
+          <div class="live-bar-header">
+            <div class="live-bar-title">Live Preview</div>
+            <div class="live-total">Total: <span id="previewTotal" style="color:var(--text-light);">0</span> <span style="color:var(--text-muted); font-size:0.8rem;">/ 600</span> &nbsp;|&nbsp; <span id="previewPercent">0%</span></div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <button class="btn-calc" onclick="calculateResult()">Calculate & Save Result</button>
+
+        <!-- Result Box -->
+        <div class="result-box" id="resultBox" style="padding:0; border:none; background:transparent;">
+          
+          <!-- Hero Card -->
+          <div class="hero-card">
+            <div class="hero-avatar">🎓</div>
+            <div class="hero-info">
+              <h3 id="rNameText">Student Name</h3>
+              <p><span id="rCourseText">Course</span> • <span id="rSemText">Semester</span> • <span id="rRollText">Roll No</span></p>
+            </div>
+            <div class="status-badge" id="rBadge">PASS</div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Marks</div>
+              <div class="stat-value"><span id="rTotal">0</span><span style="font-size:1rem;color:var(--text-muted);">/600</span></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Percentage</div>
+              <div class="stat-value"><span id="rPct">0</span>%</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Grade</div>
+              <div class="stat-value" id="rGrade" style="color:var(--gold);">A</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Status</div>
+              <div class="stat-value" id="rStatus">Pass</div>
+            </div>
+          </div>
+
+          <table style="width:100%; border-collapse:collapse; margin-bottom:16px; background:rgba(17,34,64,0.85); border-radius:12px; overflow:hidden;">
+            <thead>
+              <tr style="background:rgba(240,192,64,0.12);">
+                <th style="padding:16px; color:var(--gold); text-align:left;">Subject</th>
+                <th style="padding:16px; color:var(--gold); text-align:right;">Marks Obtained</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.06);">Mathematics</td><td style="padding:16px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06);" id="rMath">0</td></tr>
+              <tr><td style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.06);">Science</td><td style="padding:16px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06);" id="rSci">0</td></tr>
+              <tr><td style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.06);">English</td><td style="padding:16px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06);" id="rEng">0</td></tr>
+              <tr><td style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.06);">Social Science</td><td style="padding:16px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06);" id="rSoc">0</td></tr>
+              <tr><td style="padding:16px; border-bottom:1px solid rgba(255,255,255,0.06);">Computer Science</td><td style="padding:16px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.06);" id="rComp">0</td></tr>
+              <tr><td style="padding:16px;">Hindi</td><td style="padding:16px; text-align:right;" id="rHin">0</td></tr>
+            </tbody>
+          </table>
+
+          <!-- Graphical View -->
+          <div style="background:rgba(17,34,64,0.85); padding:24px; border-radius:16px; margin-bottom:16px; border:1px solid rgba(100,255,218,0.1);">
+            <h5 style="color:var(--accent); margin-bottom:16px; font-size:1.1rem;">📊 Performance Graph</h5>
+            <canvas id="marksChart" style="width:100%; max-height:250px;"></canvas>
+          </div>
+
+          <!-- Conclusion -->
+          <div style="background:rgba(100,255,218,0.05); padding:24px; border-radius:16px; border-left:4px solid var(--accent);">
+            <h5 style="color:var(--gold); margin-bottom:10px; font-size:1.1rem;">Teacher's Conclusion</h5>
+            <p id="rConclusion" style="font-size:0.95rem; line-height:1.6; color:var(--text-light);"></p>
+          </div>
+          
+          <div style="text-align:center; margin-top:24px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+            <button class="pdf-btn" onclick="saveAsPDF()" style="background:linear-gradient(135deg,var(--gold),#e8a020); color:var(--navy); padding:16px 32px; font-size:1.1rem; font-weight:bold; border-radius:12px; cursor:pointer; border:none; box-shadow:0 4px 20px rgba(240,192,64,0.3); transition:0.3s;">📄 Download PDF Report</button>
+            <button onclick="emailResult()" style="background:linear-gradient(135deg,#64ffda,#00bfa5); color:var(--navy); padding:16px 32px; font-size:1.1rem; font-weight:bold; border-radius:12px; cursor:pointer; border:none; box-shadow:0 4px 20px rgba(100,255,218,0.3); transition:0.3s;">📧 Email Result</button>
+          </div>
+          <p id="emailStatusMsg" style="text-align:center; color:var(--accent); margin-top:12px; font-weight:bold; display:none;"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Storage (Calculated Records) -->
+    <div id="tab-storage" class="tab-content">
+      <div class="card">
+        <h3>All Calculated Records</h3>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:15px;">List of all academic entries. Click Edit to update.</p>
+        
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Name</th><th>Roll No</th><th>Course</th><th>Sem</th><th>Dept</th>
+                <th>Total</th><th>Pct</th><th>Grade</th><th>Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="recordsTableBody">
+              <tr><td colspan="11" style="text-align:center;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Check Result (Mock API) -->
+    <div id="tab-check-result" class="tab-content">
+      <div class="card">
+        <h3>🔍 Fetch University Result (Native API)</h3>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+          Select your university and enter your roll number to fetch your live result.
+        </p>
+        
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="input-group">
+            <label>Select University</label>
+            <select id="fetchUniv" style="width:100%; padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(17,34,64,0.8); color:#fff;">
+              <option value="AKTU">AKTU (Dr. A.P.J. Abdul Kalam Technical University)</option>
+              <option value="CCSU">CCSU (Chaudhary Charan Singh University)</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Roll Number</label>
+            <input type="text" id="fetchRoll" placeholder="e.g. 21012301001" />
+          </div>
+        </div>
+        <button onclick="fetchUniversityResult()" style="background:var(--accent); color:var(--navy); padding:12px 24px; font-weight:bold; border-radius:8px; cursor:pointer; border:none;">Fetch Result</button>
+        
+        <p id="fetchStatus" style="margin-top:15px; color:var(--gold); font-weight:bold;"></p>
+
+        <!-- Display Fetched Result -->
+        <div id="fetchedResultView" style="display:none; margin-top:30px; background:rgba(255,255,255,0.05); padding:20px; border-radius:12px; border-left:4px solid var(--accent);">
+          <h4 style="color:var(--accent); margin-bottom:15px;">Result Fetched Successfully!</h4>
+          <p><strong>Name:</strong> <span id="fName"></span></p>
+          <p><strong>Course:</strong> <span id="fCourse"></span> | <strong>Sem:</strong> <span id="fSem"></span></p>
+          <p style="margin-top:10px;"><strong>Marks:</strong> <span id="fMarksPreview" style="color:var(--text-light);"></span></p>
+          
+          <button onclick="importToCalc()" style="margin-top:20px; background:linear-gradient(135deg,var(--gold),#e8a020); color:var(--navy); padding:12px 24px; font-weight:bold; border-radius:8px; cursor:pointer; border:none;">📥 Import to Calculation Form</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const user = sessionStorage.getItem('studentName') || 'Guest';
+    document.getElementById('loggedUser').textContent = user;
+    document.getElementById('cName').value = user;
+
+    const API_BASE = 'http://localhost:8080/api';
+
+    // Tabs logic
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      
+      document.getElementById('tab-' + tab).classList.add('active');
+      event.currentTarget.classList.add('active');
+
+      if(tab === 'storage') loadRecords();
+    }
+
+    // Mock API logic
+    let latestFetchedData = null;
+
+    async function fetchUniversityResult() {
+      const univ = document.getElementById('fetchUniv').value;
+      const roll = document.getElementById('fetchRoll').value;
+      const statusP = document.getElementById('fetchStatus');
+      const resultView = document.getElementById('fetchedResultView');
+
+      if(!roll) { statusP.textContent = "Please enter Roll Number!"; return; }
+
+      statusP.style.color = "var(--text-light)";
+      statusP.textContent = "Fetching result from University Server...";
+      resultView.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/university/fetch-result?univ=${univ}&rollNumber=${roll}`);
+        if(res.ok) {
+          const data = await res.json();
+          latestFetchedData = data;
+          
+          document.getElementById('fName').textContent = data.studentName;
+          document.getElementById('fCourse').textContent = data.course;
+          document.getElementById('fSem').textContent = data.semester;
+          
+          let previewStr = `Math: ${data.marks.Mathematics}, Sci: ${data.marks.Science}, Eng: ${data.marks.English}, Soc: ${data.marks['Social Science']}, Comp: ${data.marks['Computer Science']}, Hin: ${data.marks.Hindi}`;
+          document.getElementById('fMarksPreview').textContent = previewStr;
+
+          statusP.textContent = "";
+          resultView.style.display = 'block';
+        } else {
+          statusP.style.color = "red";
+          statusP.textContent = "Failed to fetch result.";
+        }
+      } catch (e) {
+        statusP.style.color = "red";
+        statusP.textContent = "Error: Could not connect to backend API.";
+      }
+    }
+
+    function importToCalc() {
+      if(!latestFetchedData) return;
+      
+      const data = latestFetchedData;
+      document.getElementById('cName').value = data.studentName;
+      document.getElementById('cRoll').value = data.rollNumber;
+      document.getElementById('cCourse').value = data.university + " - " + data.course;
+      document.getElementById('cSem').value = data.semester;
+      document.getElementById('cDept').value = data.department;
+
+      document.getElementById('mMath').value = data.marks.Mathematics;
+      document.getElementById('mSci').value = data.marks.Science;
+      document.getElementById('mEng').value = data.marks.English;
+      document.getElementById('mSoc').value = data.marks['Social Science'];
+      document.getElementById('mComp').value = data.marks['Computer Science'];
+      document.getElementById('mHin').value = data.marks.Hindi;
+
+      updatePreview();
+      
+      document.querySelectorAll('.nav-link').forEach(l => {
+        if(l.textContent.includes("Calculation") && !l.textContent.includes("Records")) l.click();
+      });
+      switchTab('calc');
+    }
+
+    // Tab 1: Calculation
+    let currentEditId = null;
+    let universitySearchTimeout = null;
+
+    async function searchUniversities(query) {
+      if(query.length < 3) return;
+      
+      clearTimeout(universitySearchTimeout);
+      universitySearchTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch(`http://universities.hipolabs.com/search?country=India&name=${encodeURIComponent(query)}`);
+          if(res.ok) {
+            const data = await res.json();
+            const datalist = document.getElementById('universityList');
+            datalist.innerHTML = '';
+            // Limit to 10 results to avoid UI lag
+            data.slice(0, 10).forEach(uni => {
+              const option = document.createElement('option');
+              option.value = uni.name;
+              datalist.appendChild(option);
+            });
+          }
+        } catch(e) {
+          console.error("Failed to fetch universities from external API", e);
+        }
+      }, 500); // debounce 500ms
+    }
+
+    function updatePreview() {
+      const ids = ['mMath', 'mSci', 'mEng', 'mSoc', 'mComp', 'mHin'];
+      let total = 0;
+      ids.forEach(id => {
+        const val = parseFloat(document.getElementById(id).value);
+        if(!isNaN(val) && val >= 0 && val <= 100) { total += val; }
+      });
+      const pct = ((total / 600) * 100).toFixed(1);
+      
+      document.getElementById('previewTotal').textContent = total;
+      document.getElementById('previewPercent').textContent = pct + '%';
+      
+      const fill = document.getElementById('progressFill');
+      fill.style.width = pct + '%';
+      if (pct >= 75) fill.style.background = 'linear-gradient(90deg,#64ffda,#00bfa5)';
+      else if (pct >= 60) fill.style.background = 'linear-gradient(90deg,#64ffda,var(--gold))';
+      else if (pct >= 35) fill.style.background = 'linear-gradient(90deg,var(--gold),#e8a020)';
+      else fill.style.background = 'linear-gradient(90deg,#ff6b6b,#e53935)';
+    }
+
+    function calculateResult() {
+      const math = +document.getElementById('mMath').value;
+      const sci = +document.getElementById('mSci').value;
+      const eng = +document.getElementById('mEng').value;
+      const soc = +document.getElementById('mSoc').value;
+      const comp = +document.getElementById('mComp').value;
+      const hin = +document.getElementById('mHin').value;
+
+      const total = math + sci + eng + soc + comp + hin;
+      const pct = parseFloat(((total / 600) * 100).toFixed(2));
+      
+      let grade = 'F';
+      if(pct>=90) grade='A+'; else if(pct>=80) grade='A'; else if(pct>=70) grade='B'; else if(pct>=50) grade='C'; else if(pct>=35) grade='D';
+      const status = pct >= 35 ? 'Pass' : 'Fail';
+
+      // Populate the full detailed report
+      document.getElementById('rNameText').textContent = document.getElementById('cName').value || '-';
+      document.getElementById('rRollText').textContent = document.getElementById('cRoll').value || '-';
+      document.getElementById('rCourseText').textContent = document.getElementById('cCourse').value || '-';
+      document.getElementById('rSemText').textContent = document.getElementById('cSem').value || '-';
+      
+      document.getElementById('rMath').textContent = math;
+      document.getElementById('rSci').textContent = sci;
+      document.getElementById('rEng').textContent = eng;
+      document.getElementById('rSoc').textContent = soc;
+      document.getElementById('rComp').textContent = comp;
+      document.getElementById('rHin').textContent = hin;
+
+      // Badge
+      const badge = document.getElementById('rBadge');
+      badge.textContent = status.toUpperCase();
+      if(status === 'Pass') {
+        badge.className = 'status-badge pass';
+      } else {
+        badge.className = 'status-badge fail';
+      }
+
+      document.getElementById('rTotal').textContent = total;
+      document.getElementById('rPct').textContent = pct;
+      document.getElementById('rGrade').textContent = grade;
+      document.getElementById('rStatus').textContent = status;
+
+      // Conclusion Generation
+      const marksArr = [
+        {sub: 'Mathematics', val: math}, {sub: 'Science', val: sci}, {sub: 'English', val: eng},
+        {sub: 'Social Science', val: soc}, {sub: 'Computer', val: comp}, {sub: 'Hindi', val: hin}
+      ];
+      marksArr.sort((a,b) => b.val - a.val);
+      const best = marksArr[0];
+      const worst = marksArr[marksArr.length-1];
+      
+      let conclusion = `The student has achieved a total of <strong>${total}/600</strong>, scoring <strong>${pct}%</strong> overall. `;
+      if(status === 'Pass') {
+        conclusion += `They have passed with a solid <strong>Grade ${grade}</strong>. `;
+      } else {
+        conclusion += `Unfortunately, they did not meet the passing criteria. `;
+      }
+      conclusion += `<br><strong>Performance Analysis:</strong> The student performed exceptionally well in <strong>${best.sub} (${best.val})</strong>, `;
+      if (worst.val < 40) {
+        conclusion += `but needs significant improvement in <strong>${worst.sub} (${worst.val})</strong>.`;
+      } else {
+        conclusion += `and the lowest score was in <strong>${worst.sub} (${worst.val})</strong>, which is still a decent effort.`;
+      }
+      document.getElementById('rConclusion').innerHTML = conclusion;
+
+      document.getElementById('resultBox').classList.add('show');
+
+      // Graph Generation
+      if(window.marksChartInstance) { window.marksChartInstance.destroy(); }
+      const ctx = document.getElementById('marksChart').getContext('2d');
+      window.marksChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Math', 'Science', 'English', 'Social', 'Computer', 'Hindi'],
+          datasets: [{
+            label: 'Marks Obtained',
+            data: [math, sci, eng, soc, comp, hin],
+            backgroundColor: 'rgba(100, 255, 218, 0.6)',
+            borderColor: 'rgba(100, 255, 218, 1)',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          animation: false, // Turn off animation so PDF captures immediately
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8892b0' } },
+            x: { grid: { display: false }, ticks: { color: '#8892b0' } }
+          },
+          plugins: {
+            legend: { labels: { color: '#fff' } }
+          }
+        }
+      });
+
+      // Setup for email
+      window.currentResultEmailData = {
+        name: document.getElementById('cName').value,
+        email: document.getElementById('cEmail').value,
+        status: status,
+        percentage: pct
+      };
+
+      // Save to backend
+      const payload = {
+        studentName: document.getElementById('cName').value,
+        rollNumber: document.getElementById('cRoll').value,
+        course: document.getElementById('cCourse').value,
+        semester: document.getElementById('cSem').value,
+        department: document.getElementById('cDept').value,
+        math, science: sci, english: eng, social: soc, computer: comp, hindi: hin,
+        total, percentage: pct, grade, status
+      };
+
+      const method = currentEditId ? 'PUT' : 'POST';
+      const url = currentEditId ? `${API_BASE}/marks/${currentEditId}` : `${API_BASE}/marks`;
+
+      fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(res => res.json()).then(data => {
+        alert(currentEditId ? 'Record Updated!' : 'Record Saved!');
+        currentEditId = null; // reset
+      }).catch(err => console.error(err));
+    }
+
+    // PDF Generation
+    function saveAsPDF() {
+      const element = document.getElementById('pdf-content');
+      const opt = {
+        margin:       10,
+        filename:     `${user}_Result.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      // Hide the PDF button during capture
+      const btn = document.querySelector('.pdf-btn');
+      btn.style.display = 'none';
+      html2pdf().set(opt).from(element).save().then(() => {
+        btn.style.display = 'block';
+      });
+    }
+
+    // Tab 2: Storage & Edit
+    function loadRecords() {
+      fetch(`${API_BASE}/marks`)
+      .then(r => r.json())
+      .then(data => {
+        const tbody = document.getElementById('recordsTableBody');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+          const statusCol = row.status === 'Pass' ? 'color:var(--accent)' : 'color:var(--danger)';
+          const encoded = encodeURIComponent(JSON.stringify(row));
+          tbody.innerHTML += `
+            <tr>
+              <td>${row.id}</td>
+              <td><strong>${row.studentName}</strong></td>
+              <td>${row.rollNumber || '-'}</td>
+              <td>${row.course || '-'}</td>
+              <td>${row.semester || '-'}</td>
+              <td>${row.department || '-'}</td>
+              <td><strong>${row.total}</strong></td>
+              <td>${row.percentage}%</td>
+              <td style="color:var(--gold)"><strong>${row.grade}</strong></td>
+              <td style="${statusCol}"><strong>${row.status}</strong></td>
+              <td><button class="btn-edit" onclick="editRecord('${encoded}')">Edit</button></td>
+            </tr>
+          `;
+        });
+      });
+    }
+
+    async function emailResult() {
+      const emailData = window.currentResultEmailData;
+      const msgDiv = document.getElementById('emailStatusMsg');
+      
+      if(!emailData || !emailData.email) {
+        msgDiv.style.color = 'var(--danger)';
+        msgDiv.textContent = '❌ Please enter Student Email before calculating to send an email.';
+        msgDiv.style.display = 'block';
+        return;
+      }
+      
+      msgDiv.style.color = 'var(--gold)';
+      msgDiv.textContent = '⏳ Sending email via backend API...';
+      msgDiv.style.display = 'block';
+
+      try {
+        const res = await fetch('http://localhost:8080/api/email/send-result', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailData)
+        });
+        if(res.ok) {
+          msgDiv.style.color = 'var(--accent)';
+          msgDiv.textContent = '✅ Email sent successfully (check backend console for SMTP logs).';
+        } else {
+          msgDiv.style.color = 'var(--danger)';
+          msgDiv.textContent = '❌ Failed to send email.';
+        }
+      } catch (e) {
+        msgDiv.style.color = 'var(--danger)';
+        msgDiv.textContent = '❌ Could not connect to Email API.';
+      }
+    }
+
+    function editRecord(encodedObj) {
+      const row = JSON.parse(decodeURIComponent(encodedObj));
+      currentEditId = row.id;
+      
+      // Switch to Calc tab
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      document.getElementById('tab-calc').classList.add('active');
+      document.querySelector('.nav-link').classList.add('active'); // highlight calc tab
+
+      // Fill form
+      document.getElementById('cName').value = row.studentName;
+      document.getElementById('cRoll').value = row.rollNumber || '';
+      document.getElementById('cCourse').value = row.course || '';
+      document.getElementById('cSem').value = row.semester || 'Semester 1';
+      document.getElementById('cDept').value = row.department || '';
+      document.getElementById('mMath').value = row.math || 0;
+      document.getElementById('mSci').value = row.science || 0;
+      document.getElementById('mEng').value = row.english || 0;
+      document.getElementById('mSoc').value = row.social || 0;
+      document.getElementById('mComp').value = row.computer || 0;
+      document.getElementById('mHin').value = row.hindi || 0;
+
+      // Hide result box until calculated again
+      document.getElementById('resultBox').classList.remove('show');
+    }
+
+    // Tab 3: WhatsApp Chat Clone
+    let lastMsgCount = 0;
+    function loadMessages() {
+      fetch(`${API_BASE}/messages`)
+      .then(r => r.json())
+      .then(msgs => {
+        if(msgs.length > lastMsgCount) {
+          const box = document.getElementById('chatMessages');
+          box.innerHTML = '';
+          msgs.forEach(m => {
+            const isMe = m.senderName === user;
+            const bubbleClass = isMe ? 'msg-sent' : 'msg-received';
+            const date = new Date(m.timestamp);
+            const timeStr = date.getHours() + ':' + String(date.getMinutes()).padStart(2, '0');
+            box.innerHTML += `
+              <div class="msg-bubble ${bubbleClass}">
+                <div class="sender">${m.senderName}</div>
+                <div class="text">${m.content}</div>
+                <div class="time">${timeStr}</div>
+              </div>
+            `;
+          });
+          box.scrollTop = box.scrollHeight;
+          lastMsgCount = msgs.length;
+        }
+      });
+    }
+
+    function sendMessage() {
+      const inp = document.getElementById('chatInput');
+      const text = inp.value.trim();
+      if(!text) return;
+      inp.value = '';
+
+      fetch(`${API_BASE}/messages`, {
+        method: 'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ senderName: user, content: text })
+      }).then(() => loadMessages());
+    }
+
+    // Poll messages every 3 seconds
+    setInterval(loadMessages, 3000);
+    loadMessages(); // initial load
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
