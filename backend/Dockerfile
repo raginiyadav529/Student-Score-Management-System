@@ -1,12 +1,30 @@
-# Step 1: Build the application using Maven
-FROM maven:3.8.5-openjdk-17 AS build
-WORKDIR /app
-COPY . .
-RUN mvn clean package -DskipTests
+# Stage 1: Build the Spring Boot application using Maven
+FROM eclipse-temurin:21-jdk-jammy AS builder
 
-# Step 2: Run the application using OpenJDK
-FROM openjdk:17-jdk-slim
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+
+# Copy Maven wrapper and project files
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+COPY src src
+
+# Make Maven wrapper executable
+RUN chmod +x mvnw
+
+# Build the application (skip tests for faster build)
+RUN ./mvnw clean package -DskipTests
+
+# Stage 2: Create the final lightweight runtime image
+FROM eclipse-temurin:21-jre-jammy
+
+WORKDIR /app
+
+# Copy the JAR file from the builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Expose the port your Spring Boot app is configured to use
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# Run the application
+ENTRYPOINT ["java","-jar","app.jar"]
